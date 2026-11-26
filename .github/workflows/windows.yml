@@ -77,7 +77,7 @@ jobs:
     - name: Set timezone
       run: tzutil /s "FLE Standard Time"
       shell: cmd
-    - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0
+    - uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2.34.0
       with:
         release: false
         msystem: ${{matrix.sys}}
