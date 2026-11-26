@@ -1,0 +1,60 @@
+name: SAST Pipeline with Security Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  sast-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Cppcheck: основной Security Gate ---
+      - name: Install Cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run Cppcheck (Security Gate)
+        # --error-exitcode=2: если найдены ошибки, шаг падает (красный статус)
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --inconclusive \
+            --std=c++17 \
+            --platform=unix64 \
+            --suppress=missingIncludeSystem \
+            --error-exitcode=2 \
+            --xml \
+            --xml-version=2 \
+            -I include \
+            src 2> cppcheck-report.xml
+
+      - name: Upload Cppcheck Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-report
+          path: cppcheck-report.xml
+
+      # --- clang-tidy: дополнительный анализатор ---
+      - name: Install clang-tidy
+        run: sudo apt-get install -y clang-tidy
+
+      - name: Run clang-tidy
+        run: |
+          # Устанавливаем cmake для генерации compile_commands.json
+          sudo apt-get install -y cmake ninja-build
+          cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          # Запускаем clang-tidy (без Security Gate, просто для отчёта)
+          clang-tidy -p build src/*.cc --checks='bugprone-*,cert-*,clang-analyzer-*' -header-filter='.*' 2>&1 | tee clang-tidy-report.txt || true
+
+      - name: Upload clang-tidy Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-report
+          path: clang-tidy-report.txt
